@@ -7,7 +7,7 @@ import {some} from '../util';
 
 import {RankingScore, FeatureScore} from './ranking';
 
-import {EncodingQuery, isDimension, isMeasure, isFieldQuery} from '../query/encoding';
+import {EncodingQuery, isDimension, isMeasure, isFieldQuery, isAutoCountQuery} from '../query/encoding';
 
 export const name = 'aggregationQuality';
 
@@ -23,8 +23,9 @@ function aggregationQualityFeature (specM: SpecQueryModel, _: Schema, __: QueryC
   const encodings = specM.getEncodings();
   if (specM.isAggregate()) {
     const isRawContinuous = (encQ: EncodingQuery) => {
-      return isFieldQuery(encQ) && ((encQ.type === Type.QUANTITATIVE && !encQ.bin && !encQ.aggregate && !encQ.autoCount) ||
-        (encQ.type === Type.TEMPORAL && !encQ.timeUnit));
+
+      return isFieldQuery(encQ) && ((encQ.type === Type.QUANTITATIVE && !encQ.bin && !encQ.aggregate && (!isAutoCountQuery(encQ) || !encQ.autoCount)) ||
+        (isFieldQuery(encQ) && encQ.type === Type.TEMPORAL && !encQ.timeUnit));
     };
 
     if (some(encodings, isRawContinuous)) {
@@ -39,7 +40,7 @@ function aggregationQualityFeature (specM: SpecQueryModel, _: Schema, __: QueryC
 
     if (some(encodings, isDimension)) {
       let hasCount = some(encodings, (encQ: EncodingQuery) => {
-        return isFieldQuery(encQ) && (encQ.aggregate === 'count' || encQ.autoCount === true);
+        return (isFieldQuery(encQ) && encQ.aggregate === 'count' || isAutoCountQuery(encQ) && encQ.autoCount === true);
       });
       let hasBin = some(encodings, (encQ: EncodingQuery) => {
         return isFieldQuery(encQ) && !!encQ.bin;

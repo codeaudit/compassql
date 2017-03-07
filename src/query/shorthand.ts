@@ -6,7 +6,7 @@ import {SINGLE_TIMEUNITS, MULTI_TIMEUNITS} from 'vega-lite/build/src/timeunit';
 import {Type, getFullName} from 'vega-lite/build/src/type';
 import {toMap, isString} from 'datalib/src/util';
 
-import {EncodingQuery, isFieldQuery, FieldQuery, isValueQuery} from './encoding';
+import {EncodingQuery, isFieldQuery, FieldQuery, isValueQuery, isAutoCountQuery} from './encoding';
 import {SpecQuery, stack, fromSpec} from './spec';
 
 import {isWildcard, isShortWildcard, SHORT_WILDCARD} from '../wildcard';
@@ -133,7 +133,7 @@ export function spec(specQ: SpecQuery,
   if (specQ.encodings) {
     const encodings = specQ.encodings.reduce((encQs, encQ) => {
           // Exclude encoding mapping with autoCount=false as they are basically disabled.
-          if (isFieldQuery(encQ) && encQ.autoCount !== false) {
+          if (isAutoCountQuery(encQ) && encQ.autoCount !== false) {
             const str = encoding(encQ, include, replace);
             if (str) { // only add if the shorthand isn't an empty string.
               encQs.push(str);
@@ -199,7 +199,8 @@ export function fieldDef(fieldQ: FieldQuery,
     include: PropIndex<boolean> = INCLUDE_ALL,
     replacer: PropIndex<Replacer> = REPLACE_NONE): string {
 
-  if (include.get(Property.AGGREGATE) && fieldQ.autoCount === false) {
+  // TODO(akshatsh): check this
+  if (include.get(Property.AGGREGATE) && isAutoCountQuery(fieldQ) && fieldQ.autoCount === false) {
     return '-';
   }
 
@@ -238,7 +239,7 @@ export function fieldDef(fieldQ: FieldQuery,
 function func(fieldQ: FieldQuery, include: PropIndex<boolean>, replacer: PropIndex<Replacer>): string | Object {
   if (include.get(Property.AGGREGATE) && fieldQ.aggregate && !isWildcard(fieldQ.aggregate)) {
     return replace(fieldQ.aggregate, replacer.get(Property.AGGREGATE));
-  } else if (include.get(Property.AGGREGATE) && fieldQ.autoCount && !isWildcard(fieldQ.autoCount)) {
+  } else if (include.get(Property.AGGREGATE) && isAutoCountQuery(fieldQ) && fieldQ.autoCount && !isWildcard(fieldQ.autoCount)) {
     // autoCount is considered a part of aggregate
     return replace('count', replacer.get(Property.AGGREGATE));;
   } else if (include.get(Property.TIMEUNIT) && fieldQ.timeUnit && !isWildcard(fieldQ.timeUnit)) {

@@ -12,7 +12,7 @@ import {isWildcard, Wildcard} from '../wildcard';
 import {PrimitiveType, Schema} from '../schema';
 import {contains, every} from '../util';
 
-import {scaleType, FieldQuery, isDimension, isMeasure, ScaleQuery, EncodingQueryBase, ValueQuery, isValueQuery} from '../query/encoding';
+import {scaleType, FieldQuery, isDimension, isMeasure, ScaleQuery, EncodingQueryBase, ValueQuery, isValueQuery, isAutoCountQuery, AutoCountQuery} from '../query/encoding';
 
 /**
  * Collection of constraints for a single encoding mapping.
@@ -69,7 +69,7 @@ export interface EncodingConstraint<E extends EncodingQueryBase> extends Abstrac
   satisfy: EncodingConstraintChecker<E>;
 }
 
-export const FIELD_CONSTRAINTS: EncodingConstraintModel<FieldQuery>[] = [
+export const FIELD_CONSTRAINTS: EncodingConstraintModel<FieldQuery | AutoCountQuery>[] = [
   {
     name: 'aggregateOpSupportedByType',
     description: 'Aggregate function should be supported by data type.',
@@ -162,9 +162,11 @@ export const FIELD_CONSTRAINTS: EncodingConstraintModel<FieldQuery>[] = [
     properties: [Property.AGGREGATE, Property.AUTOCOUNT, Property.TIMEUNIT, Property.BIN],
     allowWildcardForProperties: true,
     strict: true,
-    satisfy: (fieldQ: FieldQuery, _: Schema, __: PropIndex<Wildcard<any>>, ___: QueryConfig) => {
+
+    // TODO(akshatsh): Allow field query with optional autocount?
+    satisfy: (fieldQ: FieldQuery & AutoCountQuery, _: Schema, __: PropIndex<Wildcard<any>>, ___: QueryConfig) => {
       const numFn = (!isWildcard(fieldQ.aggregate) && !!fieldQ.aggregate ? 1 : 0) +
-        (!isWildcard(fieldQ.autoCount) && !!fieldQ.autoCount ? 1 : 0) +
+        (isAutoCountQuery(fieldQ) && !isWildcard(fieldQ.autoCount) && !!fieldQ.autoCount ? 1 : 0) +
         (!isWildcard(fieldQ.bin) && !!fieldQ.bin ? 1 : 0) +
         (!isWildcard(fieldQ.timeUnit) && !!fieldQ.timeUnit ? 1 : 0);
       return numFn <= 1;
@@ -385,10 +387,10 @@ export const FIELD_CONSTRAINTS: EncodingConstraintModel<FieldQuery>[] = [
       return true;
     }
   }
-].map((ec: EncodingConstraint<FieldQuery>) => new EncodingConstraintModel<FieldQuery>(ec));
+].map((ec: EncodingConstraint<FieldQuery | AutoCountQuery>) => new EncodingConstraintModel<FieldQuery | AutoCountQuery>(ec));
 
-export const FIELD_CONSTRAINT_INDEX: {[name: string]: EncodingConstraintModel<FieldQuery>} =
-  FIELD_CONSTRAINTS.reduce((m, ec: EncodingConstraintModel<FieldQuery>) => {
+export const FIELD_CONSTRAINT_INDEX: {[name: string]: EncodingConstraintModel<FieldQuery | AutoCountQuery>} =
+  FIELD_CONSTRAINTS.reduce((m, ec: EncodingConstraintModel<FieldQuery | AutoCountQuery>) => {
     m[ec.name()] = ec;
     return m;
   }, {});
